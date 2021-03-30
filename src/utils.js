@@ -1,8 +1,23 @@
-const jwkToPem = require('jwk-to-pem')
-const crypto = require('crypto');
-const cbor = require('cbor');
+const jwkToPem = require("jwk-to-pem")
+const crypto = require("crypto");
+const cbor = require("cbor");
+const bcrypt = require("bcrypt");
 
+const saltRound = 14;
 const utils = {};
+
+utils.hashHexString = (msg, hashAlg="sha256") => {
+    const hash = crypto.createHash(hashAlg);
+    return hash.update(msg).digest().toString("hex");
+}
+
+utils.encryptPassword = async (password) => {
+    let value = utils.hashHexString(password);
+
+    let st = bcrypt.genSaltSync(saltRound);
+    let pwd = bcrypt.hashSync(value, st);
+    return {salt: st, password: pwd.substring(st.length)};
+}
 
 /**
  * Evaluates the sha256 hash of a string
@@ -10,14 +25,14 @@ const utils = {};
  * @returns {Buffer} sha256 of the input data
  */
 utils.sha256 = data => {
-    const hash = crypto.createHash('sha256');
+    const hash = crypto.createHash("sha256");
     hash.update(data);
     return hash.digest();
 }
 
 /**
  * Converts a JWK to a PEM, which is compatible with
- * node's crypto verify methods.
+ * node`s crypto verify methods.
  * @param {any} jwk json web token
  */
 utils.jwkToPem = jwk => {
@@ -93,7 +108,7 @@ utils.coseToHex = buffer => {
     try {
         const publicKeyCbor = cbor.decodeFirstSync(buffer);
 
-        return cbor.encode(publicKeyCbor).toString('hex').toUpperCase();
+        return cbor.encode(publicKeyCbor).toString("hex").toUpperCase();
     } catch (e) {
         throw new Error("Could not decode COSE Key");
     }
@@ -106,7 +121,7 @@ utils.coseToHex = buffer => {
  * @returns {string}
  */
 utils.defaultTo = (str, defaultStr) => {
-    if (typeof(str) === 'undefined') {
+    if (typeof(str) === "undefined") {
         return defaultStr;
     } else {
         return str;

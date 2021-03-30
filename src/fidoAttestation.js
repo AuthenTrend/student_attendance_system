@@ -1,15 +1,16 @@
-const {derToPEM} = require('./utils.js');
 const jsrsasign = require('jsrsasign');
 const crypto = require('crypto');
 const cbor = require('cbor');
+
+const {derToPEM} = require('./utils');
 
 const fidoAttestation = {};
 
 
 /**
- * @typedef {import('./public/types').AuthenticatorData} AuthenticatorData
- * @typedef {import('./public/types').AttestedCredentialData} AttestedCredentialData
- * @typedef {import('./public/types').AttestationStatement} AttestationStatement 
+ * @typedef {import("./public/types").AuthenticatorData} AuthenticatorData
+ * @typedef {import("./public/types").AttestedCredentialData} AttestedCredentialData
+ * @typedef {import("./public/types").AttestationStatement} AttestationStatement 
  */
 
 /**
@@ -39,7 +40,7 @@ fidoAttestation.parse = (attestationObject, authenticatorData, clientDataHash) =
                 hex: "none"
             };
         default:
-            throw new Error("Unknown attestation format");
+            throw new Error("unknown_attestation_format");
     }
 
 }
@@ -71,21 +72,21 @@ const parseU2FAttestation = (attestationObject, authenticatorData, clientDataHas
 
     //Check that x5c has exactly one element and let attCert be that element. 
     if (attestationObject.attStmt.x5c.length !== 1)
-        throw new Error("Expected only one elementh in x5c");
+        throw new Error("invalid_U2F_attestation_x5c_format");
 
     const attCert = attestationObject.attStmt.x5c[0];
 
     //Convert the COSE_KEY formatted credentialPublicKey (see Section 7 of [RFC8152]) to Raw ANSI X9.62 public key format
     //Let publicKeyU2F be the concatenation 0x04 || x || y.
     const publicKeyU2F = Buffer.concat([
-        Buffer.from('04', 'hex'),
-        Buffer.from(authenticatorData.attestedCredentialData.publicKey.x, 'base64'),
-        Buffer.from(authenticatorData.attestedCredentialData.publicKey.y, 'base64'),
+        Buffer.from("04", "hex"),
+        Buffer.from(authenticatorData.attestedCredentialData.publicKey.x, "base64"),
+        Buffer.from(authenticatorData.attestedCredentialData.publicKey.y, "base64"),
     ]);
 
     //Let verificationData be the concatenation of (0x00 || rpIdHash || clientDataHash || credentialId || publicKeyU2F)
     const verificationData = Buffer.concat([
-        Buffer.from('00', 'hex'),
+        Buffer.from("00", "hex"),
         authenticatorData.rpIdHash,
         clientDataHash,
         authenticatorData.attestedCredentialData.credentialId,
@@ -97,7 +98,7 @@ const parseU2FAttestation = (attestationObject, authenticatorData, clientDataHas
     const verify = crypto.createVerify('sha256');
     verify.update(verificationData);
     if (!verify.verify(pem, attestationObject.attStmt.sig)) {
-        throw new Error("Attestation signature did not verify");
+        throw new Error("invalid_attestation_signature");
     }
 
     const c = new jsrsasign.X509();
@@ -108,7 +109,7 @@ const parseU2FAttestation = (attestationObject, authenticatorData, clientDataHas
         issuer: c.getIssuerString()
     }]);
 
-    const hex = cbor.encode(attestationObject.attStmt).toString('hex').toUpperCase();
+    const hex = cbor.encode(attestationObject.attStmt).toString("hex").toUpperCase();
 
     return {
         summary,
@@ -130,20 +131,20 @@ const parsePackedAttestation = (attestationObject, authenticatorData, clientData
     //https://www.w3.org/TR/webauthn/#packed-attestation
 
     if (!attestationObject.attStmt.x5c)
-        throw new Error("Self and ECDAA attestation statements are not supported")
+        throw new Error("not_support_attestation_format")
 
     //Verify that sig is a valid signature over the concatenation of 
     //authenticatorData and clientDataHash using the attestation public
     //key in attestnCert with the algorithm specified in alg.
     if (attestationObject.attStmt.alg !== -7)
-        throw new Error("Packed attestation statement with alg != ES256 not supported")
+        throw new Error("attestation_algorithm_not_support")
     const attCert = attestationObject.attStmt.x5c[0];
     const pem = derToPEM(attCert.toString('base64'));
     const verify = crypto.createVerify('sha256');
     verify.update(attestationObject.authData);
     verify.update(clientDataHash);
     if (!verify.verify(pem, attestationObject.attStmt.sig)) {
-        throw new Error("Attestation signature did not verify");
+        throw new Error("invalid_attestation_signature");
     }
 
     const chain = attestationObject.attStmt.x5c.map(x5c => {
@@ -158,7 +159,7 @@ const parsePackedAttestation = (attestationObject, authenticatorData, clientData
         };
     });
 
-    const chainJSON = JSON.stringify(chain);    
+    const chainJSON = JSON.stringify(chain);
     const hex = cbor.encode(attestationObject.attStmt).toString('hex').toUpperCase();
 
     return {
