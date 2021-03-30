@@ -1,0 +1,3 @@
+﻿ID,Category,Name,Teacher ID,Teacher Name,Campus,Week day,Period,Late After Minutes,Absence After Minutes
+class001,General,Meth,teacher001,Tamura San,Osaka,Monday,1,10,15
+class002,Science,Data Mining,teacher005,Aoshima San,Osaka,Thursday,3,10,15
